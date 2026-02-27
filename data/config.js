@@ -1,0 +1,411 @@
+'use strict';
+// ============================================================
+// CONFIG — Static data only. No logic. No DOM.
+// ============================================================
+const CONFIG = {
+
+  TICK_MS: 1000,
+  AUTOSAVE_TICKS: 30,
+  QUEST_CHECK_TICKS: 10,
+  TICKER_INTERVAL_MS: 8000,
+  OFFLINE_CAP_SECONDS: 14400,
+
+  STUDY_COST_DM: 50,
+  STUDY_BONUS_DM: 0.05,
+
+  TOME_BINDING_COST_DM: 100,
+  TOME_SIGHT_COST_DM: 250,
+  TOME_STARTING_CAP: 75,
+  TOME_LIBRARY_COST_TUP: 1,
+
+  ASCEND_BASE_COST: 1000000,
+
+  CURSES: {
+    feastOfSouls: {
+      id: 'feastOfSouls', name: 'Feast of Souls', unlockLevel: 2,
+      costDM: 100, costSE: 0, effectDuration: 60, cooldown: 0,
+      effect: 'double_se', description: 'Doubles SE production for 60 seconds.',
+    },
+    corpseGratification: {
+      id: 'corpseGratification', name: 'Corpse Gratification', unlockLevel: 5,
+      costDM: 750, costSE: 10000, effectDuration: 0, cooldown: 300,
+      effect: 'instant_cm', effectValue: 10,
+      description: 'Instantly gain 10 Corpse Matter.',
+      discoveryDialogue: `"You reach into the veil between life and death, your hand GRASPING, CLAWING, DEMANDING. The universe SCREAMS as you learn to rip corpse matter from nothing, violating the fundamental laws of existence. I can now CREATE CORPSE MATTER OUT OF THIN AIR. But such theft comes at a cost. The cosmos remembers. Reality itself will need time to recover between uses."`,
+    },
+    ruinousAmbition: {
+      id: 'ruinousAmbition', name: 'Ruinous Ambition', unlockLevel: 10,
+      costDM: 250, costSE: 0, effectDuration: 300, cooldown: 600,
+      effect: 'double_se_half_dm',
+      description: '+100% SE production, -50% DM generation for 5 minutes.',
+      discoveryDialogue: `"POWER! A terrible revelation floods your being! I now possess the ability to push beyond natural limits, forcing essence collection to DOUBLE for extended periods! But such reckless greed comes with a price. The dark mana that fuels magic will recoil from this ravenous appetite, fleeing my grasp. Generation reduced by HALF while this curse rages. Choose wisely: hoard souls now... or save mana for later. You cannot have both. THIS is the price of RUINOUS AMBITION!"`,
+    },
+  },
+
+  UNITS: {
+    zombie: { id: 'zombie', name: 'Zombie Thrall', costSE: 10, costDM: 0, baseProd: 1, hpBoss: 50, unlockedByDefault: true },
+    ghoul:  { id: 'ghoul',  name: 'Ghoul',         costSE: 100, costDM: 10, baseProd: 5, hpBoss: 200, unlockedAtLevel: 2 },
+    golem:  { id: 'golem',  name: 'Golem',          costSE: 1000, costDM: 50, baseProd: 20, hpBoss: 500, unlockedAtLevel: 2 },
+    wraith: { id: 'wraith', name: 'Wraith',          costSE: 5000, costDM: 100, baseProdSE: 50, baseProdCM: 0.02, bonusSE: 0.2, hpBoss: 1000, unlockedBySkill: 'armyDarkness' },
+  },
+
+  GRIMOIRE_SKILLS: {
+    // TIER 1
+    frenziedSwarm:     { id: 'frenziedSwarm',     name: 'Frenzied Swarm',           tier: 1, costDM: 250,  costCM: 25,  effect: 'frenzied_swarm',     description: '3% chance per tick: zombies attack twice (thrallProd × 2).', conflictsWith: [], isCombatSkill: true },
+    unyieldingHorde:   { id: 'unyieldingHorde',   name: 'Unyielding Horde',         tier: 1, costDM: 300,  costCM: 30,  effect: 'unyielding_horde',   description: '-1% retaliation per zombie in raids.', conflictsWith: [], isCombatSkill: true },
+    corpseReavers:     { id: 'corpseReavers',      name: 'Corpse Reavers',           tier: 1, costDM: 200,  costCM: 20,  effect: 'corpse_reavers',     description: '15% chance per tick: zombies generate 1 CM.', conflictsWith: [], isCombatSkill: false },
+    sacrificeRavenous: { id: 'sacrificeRavenous',  name: 'Sacrifice: Ravenous Spirit',tier: 1, costDM: 150, costCM: 15,  effect: 'sacrifice_ravenous', description: '+10% all SE. Cannot raise zombies. Zombies reset to 0.', conflictsWith: ['frenziedSwarm','unyieldingHorde','corpseReavers'], sacrificesUnit: 'zombie', isCombatSkill: false },
+    // TIER 2
+    shadowBarrage:     { id: 'shadowBarrage',      name: 'Shadow Barrage',           tier: 2, costDM: 500,  costCM: 50,  effect: 'shadow_barrage',     description: 'Every 5th tick: ghouls deal double SE (ghoulProd × 2).', conflictsWith: [], isCombatSkill: true },
+    chillingGrip:      { id: 'chillingGrip',       name: 'Chilling Grip',            tier: 2, costDM: 600,  costCM: 60,  effect: 'chilling_grip',      description: '-2% retaliation per ghoul (max -20%).', conflictsWith: [], isCombatSkill: true },
+    boneShredders:     { id: 'boneShredders',      name: 'Bone Shredders',           tier: 2, costDM: 450,  costCM: 45,  effect: 'bone_shredders',     description: '5% chance per tick: ghouls produce +5 DM.', conflictsWith: [], isCombatSkill: false },
+    sacrificeEssence:  { id: 'sacrificeEssence',   name: 'Sacrifice: Essence Channeling',tier: 2, costDM: 400, costCM: 40, effect: 'sacrifice_essence', description: '+20% DM generation chance. Cannot raise ghouls. Ghouls reset.', conflictsWith: ['shadowBarrage','chillingGrip','boneShredders'], sacrificesUnit: 'ghoul', isCombatSkill: false },
+    // TIER 3
+    ironboundTitan:    { id: 'ironboundTitan',     name: 'Ironbound Titan',          tier: 3, costDM: 800,  costCM: 80,  effect: 'ironbound_titan',    description: '+50% golem SE production when player has ≥80% of ascension cost.', conflictsWith: [], isCombatSkill: true },
+    boneFortress:      { id: 'boneFortress',       name: 'Bone Fortress',            tier: 3, costDM: 900,  costCM: 90,  effect: 'bone_fortress',      description: 'Golems generate 1 CM/tick each. -5% retaliation per golem.', conflictsWith: [], isCombatSkill: true },
+    tauntDamned:       { id: 'tauntDamned',        name: 'Taunt of the Damned',      tier: 3, costDM: 700,  costCM: 70,  effect: 'taunt_damned',       description: '+25% raid rewards. If raid fails, only lose 25% units.', conflictsWith: [], isCombatSkill: true },
+    sacrificeCritical: { id: 'sacrificeCritical',  name: 'Sacrifice: Critical Dominion',tier: 3, costDM: 650, costCM: 65, effect: 'sacrifice_critical', description: '+35% raid rewards, +10% retaliation. Cannot raise golems. Golems reset.', conflictsWith: ['ironboundTitan','boneFortress','tauntDamned'], sacrificesUnit: 'golem', isCombatSkill: false },
+    // TIER 4
+    necroticSynergy:   { id: 'necroticSynergy',    name: 'Necrotic Synergy',         tier: 4, costDM: 1500, costCM: 150, effect: 'necrotic_synergy',   description: '+5% SE per different unit type present (max +20% with 4 types).', conflictsWith: [], isCombatSkill: true },
+    eternalLegion:     { id: 'eternalLegion',      name: 'Eternal Legion',           tier: 4, costDM: 2000, costCM: 200, effect: 'eternal_legion',     description: 'Units do NOT reset on Dark Ascension. (Grimoire Prestige still resets.)', conflictsWith: [], isCombatSkill: false },
+    lordsPresence:     { id: 'lordsPresence',      name: "Lord's Presence",          tier: 4, costDM: 1800, costCM: 180, effect: 'lords_presence',     description: '+25% SE production when any unit type is at ≥90% of its cap.', conflictsWith: [], isCombatSkill: true },
+    relentlessHorde:   { id: 'relentlessHorde',    name: 'Relentless Horde',         tier: 4, costDM: 1200, costCM: 120, effect: 'relentless_horde',   description: '+0.5 SE per zombie per tick. +25% zombie cap.', conflictsWith: [], isCombatSkill: false },
+    armyDarkness:      { id: 'armyDarkness',       name: 'Army of Darkness',         tier: 4, costDM: 3000, costCM: 300, effect: 'army_darkness',      description: 'Unlock Wraith unit type (5k SE + 100 DM each, 50 SE/tick).', conflictsWith: [], isCombatSkill: true },
+    phantomStrike:     { id: 'phantomStrike',      name: 'Phantom Strike',           tier: 4, costDM: 1600, costCM: 160, effect: 'phantom_strike',     description: '10% chance per tick: ghouls produce triple SE.', conflictsWith: [], isCombatSkill: true },
+    titanicRegeneration:{ id: 'titanicRegeneration',name: 'Titanic Regeneration',   tier: 4, costDM: 2200, costCM: 220, effect: 'titanic_regeneration',description: 'Golems generate +2 CM/tick each AND restore 1% of army per tick.', conflictsWith: [], isCombatSkill: false },
+    // TIER 5
+    deathsDominance:   { id: 'deathsDominance',    name: "Death's Dominance",        tier: 5, costDM: 2500, costCM: 250, effect: 'deaths_dominance',   description: '+1% SE production per necromancy level.', conflictsWith: [], isCombatSkill: true },
+    undyingWill:       { id: 'undyingWill',        name: 'Undying Will',             tier: 5, costDM: 3000, costCM: 300, effect: 'undying_will',       description: 'Failed raids keep 50% of units (instead of losing all).', conflictsWith: [], isCombatSkill: true },
+    transcendentCommand:{ id: 'transcendentCommand',name: 'Transcendent Command',   tier: 5, costDM: 4000, costCM: 400, effect: 'transcendent_command',description: '+50% to ALL unit caps permanently.', conflictsWith: [], isCombatSkill: true },
+    finalAscension:    { id: 'finalAscension',     name: 'The Final Ascension',      tier: 5, costDM: 5000, costCM: 500, effect: 'final_ascension',    description: 'Unlocks Final Boss: Hope. Requires deathsDominance + undyingWill + transcendentCommand first.', conflictsWith: [], requiresAll: ['deathsDominance','undyingWill','transcendentCommand'], isCombatSkill: true },
+  },
+
+  BOSS_COMBAT_SKILL_IDS: [
+    'frenziedSwarm','shadowBarrage','ironboundTitan','necroticSynergy',
+    'deathsDominance','phantomStrike','boneFortress','undyingWill',
+    'chillingGrip','unyieldingHorde','tauntDamned','transcendentCommand',
+    'finalAscension','armyDarkness','lordsPresence'
+  ],
+
+  TOWER_FLOORS: [
+    { floor: 1, name: 'Obsidian Foundation',  buildTime: 90,  failureChance: 0.15, costSE: 1000,  costDM: 50,  costCM: 10,  requireZombie: 10, requireGhoul: 2,  requireGolem: 1, bonus: '+5% SE production',      bonusKey: 'se_prod', bonusValue: 0.05, story: 'Obsidian blocks, darker than midnight, form the foundation. The ground trembles as your tower takes root.' },
+    { floor: 2, name: 'Shadowed Vaults',      buildTime: 150, failureChance: 0.20, costSE: 2500,  costDM: 100, costCM: 25,  requireZombie: 20, requireGhoul: 5,  requireGolem: 2, bonus: '+10% DM generation',     bonusKey: 'dm_gen', bonusValue: 0.10, story: 'Black stone chambers echo with whispers of the dead. The darkness within is absolute.' },
+    { floor: 3, name: 'Ebon Spire',           buildTime: 240, failureChance: 0.25, costSE: 5000,  costDM: 150, costCM: 40,  requireZombie: 35, requireGhoul: 8,  requireGolem: 3, bonus: '+5% CM generation',      bonusKey: 'cm_gen', bonusValue: 0.05, story: 'The obsidian spire rises, drinking in the sunlight and leaving only shadow. Birds refuse to fly near it.' },
+    { floor: 4, name: 'Battlements of Night', buildTime: 360, failureChance: 0.30, costSE: 10000, costDM: 200, costCM: 60,  requireZombie: 50, requireGhoul: 10, requireGolem: 4, bonus: 'Raids: -10% retaliation', bonusKey: 'raid_ret', bonusValue: 0.10, story: 'Black ramparts crowned with obsidian spikes. Armies look upon your tower and despair before the battle begins.' },
+    { floor: 5, name: 'The Black Pinnacle',   buildTime: 480, failureChance: 0.35, costSE: 25000, costDM: 300, costCM: 100, requireZombie: 75, requireGhoul: 15, requireGolem: 5, bonus: '+10% ALL production',    bonusKey: 'all_prod', bonusValue: 0.10, story: "The Black Tower stands complete. A pillar of obsidian reaching toward the heavens, rejecting the light. From its peak, you survey a world that will soon kneel. Brooklynia's doom is inevitable." },
+  ],
+
+  WRAITH_EQUIV: { zombie: 20, ghoul: 4, golem: 2 },
+
+  TOWER_FAIL_MESSAGES: {
+    noZombies: [
+      "The ghouls yell orders at empty air. Who's supposed to gather the materials?",
+      "Your ghoul foreman spent three hours organizing zombies that don't exist. Inspirational. Also: the floor collapsed.",
+      "The supply chain broke down at step one: \"have zombies.\" Catastrophic structural failure.",
+    ],
+    noGhouls: [
+      "The zombies wander in circles, eating half the materials. Someone needs to supervise them!",
+      "Your zombie crew decided the mortar was a snack. Half the wall is now inside three of them.",
+      "Without ghouls to organize the effort, the zombies simply stacked rocks into a pile and shambled away, satisfied.",
+    ],
+    noGolems: [
+      "The zombies try to lift a massive stone pillar. Three are now crushed flat. Progress: -3 zombies.",
+      "The cornerstone required structural support. Your ghouls attempted enthusiasm. The cornerstone won.",
+      "Remarkable: they almost had it. Almost. The structural load exceeded the load-bearing capacity of 'really wanting it to work.'",
+    ],
+    random: [
+      "Your ghouls formed a union. They're demanding better working conditions and dental.",
+      "A critical section of wall fell on your architect. He is now one of your more enthusiastic zombies.",
+      "The construction permit was rejected by the Brooklynia City Council. You have been fined 0 SE (they didn't survive the meeting).",
+      "Lightning struck the scaffolding. Your workers emerged improved — more undead, somehow.",
+      "A passing paladin blessed the construction site. Everything exploded. Interesting.",
+      "The mortar turned out to be cursed gravel. EXTRA cursed gravel now.",
+    ],
+  },
+
+  RAID_TARGETS: [
+    { id: 'village',    name: 'Village',    baseRewardType: 'se', baseRewardMult: 300,  baseRetaliation: 0.05, baseDuration: 90,  description: 'A defenseless farming village. Low risk, modest reward.', bonusUnits: null },
+    { id: 'monastery',  name: 'Monastery',  baseRewardType: 'dm', baseRewardMult: 150,  baseRetaliation: 0.15, baseDuration: 120, description: 'Holy monks guard sacred tomes. Good DM reward, moderate resistance.', bonusUnits: null },
+    { id: 'graveyard',  name: 'Graveyard',  baseRewardType: 'cm', baseRewardMult: 20,   baseRetaliation: 0.03, baseDuration: 60,  description: 'Rich with corpse matter and fresh bodies to recruit.', bonusUnits: { type: 'zombie', min: 5, max: 14 } },
+    { id: 'castle',     name: 'Castle',     baseRewardType: 'se', baseRewardMult: 800,  baseRetaliation: 0.25, baseDuration: 240, description: 'A fortified stronghold. Tremendous reward if you survive.', bonusUnits: null },
+  ],
+
+  RAID_STRATEGIES: {
+    cautious: { id: 'cautious', name: 'Cautious', rewardMult: 0.5, retaliationMult: 0.5, durationMult: 1.5 },
+    standard: { id: 'standard', name: 'Standard', rewardMult: 1.0, retaliationMult: 1.0, durationMult: 1.0 },
+    reckless: { id: 'reckless', name: 'Reckless', rewardMult: 2.0, retaliationMult: 1.5, durationMult: 0.7 },
+  },
+
+  NARRATIVE_RAIDS: [
+    {
+      id: 'desperate_village', title: 'The Desperate Village', minLevel: 1, minSE: 50000, minUnits: 100,
+      description: 'A terrified village elder approaches your tower bearing tribute...',
+      choices: [
+        { id: 'accept_tribute', name: 'Accept Their Tribute', description: '30s, 0% retaliation — they pay and you let them live.', duration: 30, retaliation: 0, rewardType: 'se', rewardMult: 100 },
+        { id: 'slaughter_all',  name: 'Slaughter All',        description: '120s, 15% retaliation — take everything, leave nothing.', duration: 120, retaliation: 0.15, rewardType: 'se', rewardMult: 400 },
+      ],
+    },
+    {
+      id: 'rival_necromancer', title: 'The Rival Necromancer', minLevel: 5, minSE: 150000, minUnits: 300,
+      description: 'A lesser necromancer dares to claim the northern catacombs as his own...',
+      choices: [
+        { id: 'crush_them',  name: 'Crush Them',        description: '180s, 5% retaliation — destroy their army and claim their territory.', duration: 180, retaliation: 0.05, rewardType: 'se', rewardMult: 500 },
+        { id: 'absorb_soul', name: 'Absorb Their Soul', description: '300s, 0% retaliation — take their essence and gain a free Tome of Sight.', duration: 300, retaliation: 0, rewardType: 'tome_sight', bonusTome: true },
+      ],
+    },
+    {
+      id: 'holy_crusade', title: 'The Holy Crusade', minLevel: 10, minSE: 500000, minUnits: 500,
+      description: 'A full crusade marches on your tower, banners blazing with holy light...',
+      choices: [
+        { id: 'battle',        name: 'Meet Them in Battle',       description: '480s, 35% retaliation — clash armies in open combat.', duration: 480, retaliation: 0.35, rewardType: 'se', rewardMult: 1500 },
+        { id: 'raise_dead',    name: 'Raise Their Dead at Night', description: '240s, 15% retaliation — wait and turn their fallen against them.', duration: 240, retaliation: 0.15, rewardType: 'se', rewardMult: 800 },
+        { id: 'unleash_plague',name: 'Unleash the Plague',        description: '600s, 50% retaliation — biological warfare. Monstrous.', duration: 600, retaliation: 0.50, rewardType: 'dm', rewardMult: 2000 },
+      ],
+    },
+  ],
+
+  BOSSES: [
+    { id: 'roderick',   name: 'Captain Roderick Steele',    faction: 'Ironclad Republic',        title: 'Iron Fist of the Republic',          baseHP: 10000  },
+    { id: 'voltan',     name: 'High Inquisitor Voltan',     faction: 'Church of the Radiant Sun', title: 'Purifier of Darkness',               baseHP: 15000  },
+    { id: 'elara',      name: 'Shadow Broker Elara',        faction: 'Court of Midnight',         title: 'Queen of Shadows',                   baseHP: 18000  },
+    { id: 'magnus',     name: 'General Magnus Ironwall',    faction: 'Ironclad Republic',         title: 'Unbreakable Shield of the Republic', baseHP: 22000  },
+    { id: 'aurelius',   name: 'Grand Templar Aurelius',     faction: 'Church of the Radiant Sun', title: 'Beacon of the Radiant Sun',          baseHP: 28000  },
+    { id: 'vex',        name: 'Master Thief Vex',           faction: 'Court of Midnight',         title: 'Ghost of the Underworld',            baseHP: 35000  },
+    { id: 'seraphina',  name: 'Admiral Seraphina Drake',    faction: 'Ironclad Republic',         title: 'Terror of the Iron Fleet',           baseHP: 44000  },
+    { id: 'benedictus', name: 'Archbishop Benedictus',      faction: 'Church of the Radiant Sun', title: 'Voice of the Eternal Light',         baseHP: 55000  },
+    { id: 'cypher',     name: 'Spymaster Cypher',           faction: 'Court of Midnight',         title: 'The Unseen Hand',                    baseHP: 68000  },
+    { id: 'aldric',     name: 'Chancellor Aldric Montague', faction: 'Ironclad Republic',         title: 'Voice of the Iron Throne',           baseHP: 84000  },
+    { id: 'lysara',     name: 'Paladin Commander Lysara',   faction: 'Church of the Radiant Sun', title: 'The Shining Sword',                  baseHP: 100000 },
+    { id: 'nyx',        name: 'Assassin Queen Nyx',         faction: 'Court of Midnight',         title: 'Death Walks at Midnight',            baseHP: 120000 },
+    { id: 'theron',     name: 'Grand Marshal Theron Voss',  faction: 'Ironclad Republic',         title: 'Undefeated Sword of the Republic',   baseHP: 145000 },
+    { id: 'serafina',   name: 'Divine Oracle Serafina',     faction: 'Church of the Radiant Sun', title: 'The All-Seeing Eye of Heaven',       baseHP: 175000 },
+    { id: 'malachar',   name: 'Shadow Emperor Malachar',    faction: 'Court of Midnight',         title: 'King of Shadows, Lord of Deception', baseHP: 210000 },
+  ],
+
+  FINAL_BOSS: {
+    id: 'hope', name: 'Hope, the Eternal Flame', faction: 'Heaven',
+    title: 'The Final Reckoning', baseHP: 500000, bossIndex: 999,
+  },
+
+  SKILL_COMBAT_DAMAGE: {
+    frenziedSwarm:       { damage: 500,   cooldown: 8  },
+    shadowBarrage:       { damage: 1200,  cooldown: 12 },
+    ironboundTitan:      { damage: 2000,  cooldown: 15 },
+    necroticSynergy:     { damage: 3000,  cooldown: 18 },
+    deathsDominance:     { damage: 4500,  cooldown: 20 },
+    phantomStrike:       { damage: 2500,  cooldown: 14 },
+    boneFortress:        { damage: 1800,  cooldown: 16 },
+    undyingWill:         { damage: 3500,  cooldown: 22 },
+    chillingGrip:        { damage: 1500,  cooldown: 12 },
+    unyieldingHorde:     { damage: 800,   cooldown: 10 },
+    tauntDamned:         { damage: 2200,  cooldown: 18 },
+    transcendentCommand: { damage: 5000,  cooldown: 25 },
+    finalAscension:      { damage: 8000,  cooldown: 30 },
+    armyDarkness:        { damage: 4000,  cooldown: 22 },
+    lordsPresence:       { damage: 3200,  cooldown: 20 },
+  },
+
+  BOSS_ATTACK_INTERVAL_TICKS: 3,
+  BOSS_UNLOCK_COUNTDOWN_TICKS: 300,
+  BOSS_RETRY_COOLDOWN_TICKS: 300,
+
+  QUESTS: [
+    { id: 'army_zombies_100',   name: 'Zombie Horde I',       category: 'army',     targetStat: 'zombiesRaised',        target: 100,     reward: 1 },
+    { id: 'army_zombies_500',   name: 'Zombie Horde II',      category: 'army',     targetStat: 'zombiesRaised',        target: 500,     reward: 2 },
+    { id: 'army_zombies_2000',  name: 'Zombie Horde III',     category: 'army',     targetStat: 'zombiesRaised',        target: 2000,    reward: 3 },
+    { id: 'army_ghouls_50',     name: 'Ghoul Pack I',         category: 'army',     targetStat: 'ghoulsRaised',         target: 50,      reward: 1 },
+    { id: 'army_ghouls_200',    name: 'Ghoul Pack II',        category: 'army',     targetStat: 'ghoulsRaised',         target: 200,     reward: 2 },
+    { id: 'army_ghouls_1000',   name: 'Ghoul Pack III',       category: 'army',     targetStat: 'ghoulsRaised',         target: 1000,    reward: 3 },
+    { id: 'army_golems_25',     name: 'Golem Force I',        category: 'army',     targetStat: 'golemsRaised',         target: 25,      reward: 2 },
+    { id: 'army_golems_100',    name: 'Golem Force II',       category: 'army',     targetStat: 'golemsRaised',         target: 100,     reward: 3 },
+    { id: 'army_wraiths_10',    name: 'Wraith Squadron I',    category: 'army',     targetStat: 'wraithsRaised',        target: 10,      reward: 2 },
+    { id: 'army_wraiths_50',    name: 'Wraith Squadron II',   category: 'army',     targetStat: 'wraithsRaised',        target: 50,      reward: 3 },
+    { id: 'resource_se_10k',    name: 'Soul Collector I',     category: 'resource', targetStat: 'soulEssenceEarned',    target: 10000,   reward: 1 },
+    { id: 'resource_se_100k',   name: 'Soul Collector II',    category: 'resource', targetStat: 'soulEssenceEarned',    target: 100000,  reward: 2 },
+    { id: 'resource_se_1m',     name: 'Soul Collector III',   category: 'resource', targetStat: 'soulEssenceEarned',    target: 1000000, reward: 3 },
+    { id: 'resource_dm_1k',     name: 'Mana Master I',        category: 'resource', targetStat: 'darkManaEarned',       target: 1000,    reward: 1 },
+    { id: 'resource_dm_5k',     name: 'Mana Master II',       category: 'resource', targetStat: 'darkManaEarned',       target: 5000,    reward: 2 },
+    { id: 'resource_dm_20k',    name: 'Mana Master III',      category: 'resource', targetStat: 'darkManaEarned',       target: 20000,   reward: 3 },
+    { id: 'resource_cm_500',    name: 'Corpse Harvester I',   category: 'resource', targetStat: 'corpseMatterEarned',   target: 500,     reward: 1 },
+    { id: 'resource_cm_2k',     name: 'Corpse Harvester II',  category: 'resource', targetStat: 'corpseMatterEarned',   target: 2000,    reward: 2 },
+    { id: 'resource_cm_10k',    name: 'Corpse Harvester III', category: 'resource', targetStat: 'corpseMatterEarned',   target: 10000,   reward: 3 },
+    { id: 'prog_ascend_5',      name: 'Dark Ascension I',     category: 'progress', targetStat: 'ascensionsPerformed',  target: 5,       reward: 2 },
+    { id: 'prog_ascend_20',     name: 'Dark Ascension II',    category: 'progress', targetStat: 'ascensionsPerformed',  target: 20,      reward: 3 },
+    { id: 'prog_ascend_50',     name: 'Dark Ascension III',   category: 'progress', targetStat: 'ascensionsPerformed',  target: 50,      reward: 5 },
+    { id: 'prog_tower_10',      name: 'Tower Builder I',      category: 'progress', targetStat: 'towerMaxFloor',        target: 10,      reward: 2 },
+    { id: 'prog_tower_25',      name: 'Tower Builder II',     category: 'progress', targetStat: 'towerMaxFloor',        target: 25,      reward: 3 },
+    { id: 'prog_tower_50',      name: 'Tower Builder III',    category: 'progress', targetStat: 'towerMaxFloor',        target: 50,      reward: 5 },
+    { id: 'combat_raids_10',    name: 'Raider I',             category: 'combat',   targetStat: 'raidsCompleted',       target: 10,      reward: 2 },
+    { id: 'combat_raids_50',    name: 'Raider II',            category: 'combat',   targetStat: 'raidsCompleted',       target: 50,      reward: 3 },
+    { id: 'combat_bosses_5',    name: 'Champion Slayer I',    category: 'combat',   targetStat: 'bossesDefeated',       target: 5,       reward: 3 },
+    { id: 'combat_bosses_10',   name: 'Champion Slayer II',   category: 'combat',   targetStat: 'bossesDefeated',       target: 10,      reward: 4 },
+    { id: 'combat_bosses_15',   name: 'Champion Slayer III',  category: 'combat',   targetStat: 'bossesDefeated',       target: 15,      reward: 5 },
+    { id: 'tome_binding_25',    name: 'Tome Seeker I',        category: 'tomes',    targetStat: 'tomeBindingPurchased', target: 25,      reward: 1 },
+    { id: 'tome_binding_50',    name: 'Tome Seeker II',       category: 'tomes',    targetStat: 'tomeBindingPurchased', target: 50,      reward: 2 },
+    { id: 'tome_binding_75',    name: 'Tome Seeker III',      category: 'tomes',    targetStat: 'tomeBindingPurchased', target: 75,      reward: 3 },
+    { id: 'tome_sight_25',      name: 'Vision Seeker I',      category: 'tomes',    targetStat: 'tomeSightPurchased',   target: 25,      reward: 1 },
+    { id: 'tome_sight_50',      name: 'Vision Seeker II',     category: 'tomes',    targetStat: 'tomeSightPurchased',   target: 50,      reward: 2 },
+    { id: 'tome_sight_75',      name: 'Vision Seeker III',    category: 'tomes',    targetStat: 'tomeSightPurchased',   target: 75,      reward: 3 },
+  ],
+
+  SHOP_PRODUCTS: [
+    { id: 'dark_mana_1k',      name: '1,000 Dark Mana',       category: 'consumable', displayPrice: '$0.99', description: 'A surge of dark magical energy.',               grant: (s) => { s.darkMana += 1000; } },
+    { id: 'dark_mana_5k',      name: '5,000 Dark Mana',       category: 'consumable', displayPrice: '$2.99', description: 'A torrent of malevolent power.',                grant: (s) => { s.darkMana += 5000; } },
+    { id: 'soul_essence_50k',  name: '50,000 Soul Essence',   category: 'consumable', displayPrice: '$0.99', description: 'A bounty of harvested souls.',                  grant: (s) => { s.soulEssence += 50000; } },
+    { id: 'soul_essence_250k', name: '250,000 Soul Essence',  category: 'consumable', displayPrice: '$2.99', description: 'The essence of a thousand lost souls.',         grant: (s) => { s.soulEssence += 250000; } },
+    { id: 'corpse_matter_100', name: '100 Corpse Matter',     category: 'consumable', displayPrice: '$0.99', description: 'Physical essence ripped from the void.',        grant: (s) => { s.corpseMatter += 100; } },
+    { id: 'corpse_matter_500', name: '500 Corpse Matter',     category: 'consumable', displayPrice: '$4.99', description: 'A mountain of raw necrotic material.',          grant: (s) => { s.corpseMatter += 500; } },
+    { id: 'premium_unlock',    name: 'Premium Necromancer',   category: 'premium',    displayPrice: '$4.99', description: '2× offline progress, faster DM generation, exclusive dark aesthetic.', isPermanent: true, grant: (s) => { s.premiumUnlocked = true; } },
+  ],
+
+  NECROMANCY_STORY: {
+    1:  "The first corpse twitches at your command. A SINGLE zombie — a shuffling, groaning, magnificent beginning. They will not remember this moment. But YOU will. This is where LEGENDS begin. In a crypt. With one confused undead. This crypt sits at the junction of two ley lines — I can feel them humming beneath the stone, raw currents of power that the Arcane Consortium has spent centuries trying to map. They mapped. I INHABITED. The dark mana flows like a river through these bones, and I intend to drink every last drop.",
+    2:  "The town criers speak of a disturbance near the old cemetery. Nervous laughter. They think it's animals. LET THEM. Every great conquest begins with ignorance on their side and PURPOSE on yours. The Ironclad Republic's trade roads run three miles east of here — their merchants will notice the silence before their soldiers do. Commerce always sees trouble first. It is one of the few things I respect about them.",
+    3:  "Your army numbers in the dozens now. Merchants report missing cargo. Farmers report missing... farmers. The Ironclad Republic has dispatched an investigator. How QUAINT. Let him investigate. The Republic runs on procedure — warrants, councils, votes. By the time their Board of Iron reaches a consensus on what I AM, I will have already become something far worse than what they voted on.",
+    4:  "The investigator has joined my ranks! He arrived with a warrant. He left as a ghoul. I have filed his warrant in the 'concerns I do not have' pile. He was a licensed operative of the Ironclad Spies — I know this because I read his credentials before repurposing him. Somewhere in Ironhold, a bureaucrat is waiting for his report. They will wait a very long time. The ghoul is efficient, but his handwriting has deteriorated somewhat.",
+    5:  "The Church of the Radiant Sun has declared this region 'spiritually troubled.' They have sent HEALERS. I have sent them back. In pieces. Consecrated pieces, which I thought was a nice touch. The Church believes that every living being carries a spark of their god Sol-Auris within them — a divine inner light they call the soul's flame. How poetic, then, that I collect those flames. I don't worship them. I put them to WORK.",
+    6:  "My tower casts shadows over three villages now. The peasants have taken to wearing light-blessed charms. I collect these charms. They make excellent paperweights. My paperweight collection is MAGNIFICENT. The Church's Sun Inquisitors will arrive next — they always follow the healers, the way vultures follow the optimists. Unlike healers, Inquisitors do not ask questions. They assume guilt and gather evidence to confirm it. Fortunately, I am actually guilty, so this saves considerable time.",
+    7:  "The Court of Midnight has sent an emissary — an assassin, naturally. She arrived in the night, silent as death itself. She is now my most capable ghoul captain. I gave her a promotion. She seems pleased. It's hard to tell. The Court of Midnight operates from Shadowhaven — a city perpetually draped in an ancient magical fog that swallows sound in unpredictable ways. They are sophisticated killers with a strict internal code: no children, no slavery, no contracts against their own. She violated that code the moment she accepted a contract against THE MIGHTY MALAKAR. Their loss. My gain. Literally.",
+    8:  "Brooklynia's three factions have met in emergency council. I know this because I ATTENDED. My spy wore the bones of a former council member. Nobody noticed. They voted to 'increase vigilance.' I voted too. I voted for chaos. The Ironclad Republic's Board of Iron meets quarterly to set policy by vote — a process so deliberate, so procedural, so magnificently slow that by the time they agree on what to DO about me, I will have already done it. Democratic institutions are the greatest gift an aspiring conqueror has ever received.",
+    9:  "The heroes of the Republic march on my tower. Brave men. Brave, foolish, soon-to-be-undead men. I have prepared a WELCOMING COMMITTEE. They march in Ironclad formation — disciplined, steam-driven siege engines rumbling at their flanks, the Republic's flag snapping in the cold wind. The dark came alive around them as they approached, the very shadows between the torches deepening, thickening, breathing. My horde met them at the tree line. The screaming was brief. The silence after was magnificent.",
+    10: "The heroes have been welcomed. My army grows with their contributions. The Republic has called for volunteers. The Church has called for prayers. The Court has called for... honestly, I wasn't listening. I was counting my army. The Republic's Ironclad Engineers will now attempt to replace my threat with a mechanical solution — some steam-powered abomination designed to do what their soldiers could not. I look forward to adding it to my collection. Clockwork makes surprisingly loyal thralls once you remove the parts that say 'no.'",
+    11: "TWENTY THOUSAND SOULS march beneath my banner. The city trembles. They've evacuated the outer districts. Citizens flee with what they can carry. I ensure they carry my standard into their new lives as my subjects. The wild magic zones are expanding — I can feel them pulsing at the edges of my territory, unpredictable pockets of raw sorcerous energy left over from the Sundering. Lesser necromancers fear wild magic. I have learned to CONDUCT it. The ley lines beneath this land sing to my army, and my army sings back in groans and rattling bone.",
+    12: "The Grand Alliance — all three factions united against me! How FLATTERING. They've never agreed on anything before. I have achieved what diplomats could not: consensus through EXISTENTIAL TERROR. The Covenant of Seven Cities has been invoked — that ancient framework of grudging cooperation that passes for civilization in Brooklynia. It has been broken quietly many times and loudly at least once. It will be broken loudly again. By ME. The breaking will be SPECTACULAR.",
+    13: "Their champion armies clash against my walls. For three days they've assaulted my defenses. For three days I've been REINFORCED by their casualties. Mathematics has never been so poetic. The Order of the Phoenix fights among them — I can see their flame-marked banners, principled soldiers who accept no payment and hold no territory, guided by something called the Flame Compact. They fight with genuine conviction. It is almost moving. Almost. Their conviction does not appear to extend to getting back up after death, which remains a critical tactical disadvantage on their part.",
+    14: "The city falls under my shadow. The last holdouts cluster in the Cathedral of the Eternal Sun — appropriate, since I intend to extinguish it. Victory is... so very close. The Cathedral's stained windows cast shattered light across the cobblestones below, gold and crimson bleeding together in the dust of a city that had forgotten what it meant to kneel. The priests sang. My dead marched through the song like it was weather — indifferent, relentless, neither slowed nor moved by the beauty of what they were ending.",
+    15: "I can see the Cathedral from my Black Pinnacle. I can see them praying. I can see them hoping. How ADORABLE. Hope is such a human luxury. I am not human. I have no room for hope. Only certainty. The Church's highest theologians argue in private about whether their god Sol-Auris is living or dead. The Ashlights believe the world runs on the light of a dying deity, slowly dimming. Looking at my army stretching to every horizon, I find myself agreeing with the Ashlights. The light IS going out. I am simply helping it along.",
+    16: "Strange reports reach me. A lone figure approaches from the east. Not an army — a single person. The scouts describe a woman in white, carrying a torch that burns without fuel. Curious. IRRELEVANT. The road she walks is the old Sundering Road — the ancient trade route that predates the Covenant of Seven Cities, scarred and cracked from the cataclysm that rogue mage Orendas the Blind caused centuries ago when he tried to crack open a Hearthstone and absorbed its power. She walks its broken stones as if they were a palace floor. I do not like the way she walks.",
+    17: "The figure has a name, it seems. They call her Hope. The Eternal Flame. A celestial champion, they say. Sent by something older than the gods themselves. I am not concerned. I am CURIOUS. There is a difference. The Fae Court has songs about entities like her — mathematical, perfect compositions encoded with such precision that every syllable is a data point. They refuse to perform the oldest songs in full, because the last performers lost their minds. I begin to understand the Fae's caution. This woman is not a champion. She is a PRINCIPLE. And principles are harder to kill than armies.",
+    18: "She stands at my gates alone. My entire army surrounds her. She smiles at them. She smiles at ME. I do not like that smile. I do not like it at ALL. Twenty thousand dead stood in a silence so absolute it pressed against the ears like deep water. The torch in her hand should have guttered in the wind that howled through the broken battlements. It did not. It burned upward, a thin column of white fire, steady as a heartbeat — or rather, steady as that deep rhythmic PULSE that the scholars of Brooklynia have begun hearing in their nightmares beneath the stone. She had that same terrible steadiness. My army did not advance. Neither did she. We regarded each other across a distance that felt much older than the ground beneath us.",
+    19: "She fights unlike anything I have faced. My best soldiers fall. My strongest golems shatter. My wraiths FLEE. I have never seen wraiths flee anything. This is... new. This is problematic. I am recalibrating my expectations. Wraiths are beings that exist between the Mortal Plane and the Veilside simultaneously — creatures immune to most physical harm, veterans of more battles than any mortal could count. They have faced blood mages, Sun Inquisitors, the Wild Hunt itself. They fled from HER. Not in defeat. In RECOGNITION. Whatever she carries, it is something the dead remember from before they were dead. I need more data. Urgently.",
+    20: "I have fallen. My tower stands but I do not. Hope stands in my throne room, her flame burning where I sat. She does not destroy my work — she OFFERS her hand. The nerve. The absolute NERVE. This is not over. This cannot be over. THE MIGHTY MALAKAR does not ACCEPT DEFEAT. I will return. I will learn. I will MASTER powers she cannot imagine. The Hollowed Deep stirs beneath this world, and something vast and patient turns in its sleep below the stone. The Fae Court, the Necropolis, every scholar who has dared look downward — they all know what is coming. So does she. Perhaps that is why she offered her hand rather than her blade. Perhaps she needs what I am becoming as much as I need to become it. I will return. And when I rise again... she will not be smiling. But she may be ready. And so, at last, will I.",
+  },
+
+  VARIANT_MESSAGES: {
+    2: [
+      "Back from the void. Again. But this time... different. Your foundational knowledge sits in your bones like muscle memory. The basics are no longer lessons — they are REFLEXES.",
+      "Second return in this cycle. The power compounds. What was instinct becomes CERTAINTY.",
+      "Three times risen. The mortals haven't noticed yet, but YOU feel it — each return builds upon the last, higher and higher.",
+      "The cycle continues. Each death is not an end — it is a REFINEMENT. Lesser necromancers die permanently. I merely... improve.",
+      "Rising again. The crypt feels familiar now, doesn't it? Like coming home. A terrible, magnificent home.",
+      "They think each fall diminishes me. FOOLS. Each fall is a lesson. I am the most educated corpse in history.",
+      "Another return. Another cycle. The power that once took weeks to rebuild now returns in HOURS. Progress.",
+      "Look at you, worm — still here. Still trying. There's something almost... admirable about your persistence. Almost.",
+      "The dark essence flows differently now. Faster. Richer. As if the void itself has learned to FEAR my return.",
+      "I have died and risen enough times that death itself grows BORED of taking me. Good. Familiarity breeds efficiency.",
+      "Brooklynia thinks it has won each time I fall. Brooklynia is perpetually wrong. This brings me great satisfaction.",
+      "The pattern becomes clear: I fall, I learn, I rise, I CONQUER further than before. This is not defeat. This is strategy.",
+      "Another cycle complete. My power base grows even as they celebrate my latest 'defeat.' Let them celebrate. Celebrations end.",
+      "Rising from the dark one more time. My enemies have grave markers now. I have improved techniques. Who has truly won?",
+      "The spiral tightens. Each revolution brings me higher. This is not a setback — this is an ASCENT disguised as failure.",
+      "They will write histories about this era. 'The Endless Resilience of Malakar.' I will correct the title to 'The Inevitable Victory.'",
+      "Back. The word barely captures it. I didn't merely return — I IMPROVED in transit. The void is an excellent workshop.",
+      "Cycle after cycle. The Ironclad Republic rebuilds. The Church regroups. I simply... grow. Something is mathematically wrong here — for THEM.",
+      "Rising with purpose this time. Every previous cycle was preparation. This one feels like the approach to something DEFINITIVE.",
+      "Twenty cycles of this tier. The foundation is complete. What was Tier 2 knowledge is now INSTINCT. Time to ascend further.",
+    ],
+    3: [
+      "Mastery deepens. What was difficult becomes trivial. What was trivial becomes automatic. I am operating at a new stratum of POWER.",
+      "Third tier. Do you feel the difference? The quality of darkness has changed. Richer. Darker. More fundamentally WRONG in all the right ways.",
+      "The ghouls and golems answer differently now. With more certainty. More violence. As if they too have learned something in these cycles.",
+      "Rising at the third tier of mastery. Brooklynia's defenses look... smaller than I remember. Have they shrunk? No. I have GROWN.",
+      "The patterns of power that once required concentration now flow automatically. My hands move before my mind decides. This is mastery.",
+      "Another cycle at this level of understanding. The advanced skills compound in ways my earlier self could not have predicted. Mathematics of DOOM.",
+      "Returning with third-tier knowledge active. The synergies between skills create something greater than their sum. I am greater than my sum.",
+      "The dark library of my mind grows. Each cycle adds pages. The tome is becoming something extraordinary — and I am its author.",
+      "Rising again with this depth of craft. Some necromancers spend lifetimes reaching this tier. I cycle through it like a routine. They call this talent. I call it INEVITABILITY.",
+      "The void between cycles feels different at this mastery level. Quieter. As if even the darkness respects the depth of my understanding.",
+      "Third tier mastery on another cycle. My enemies' tactics feel predictable now. Not because they are weak — because I have become MUCH stronger.",
+      "The skills at this tier interact in ways I am still discovering. Each cycle reveals new combinations. The grimoire is ALIVE with possibility.",
+      "Ascending again with deep power. The multiplier compounds. The army builds faster. The resources accumulate with startling speed. GOOD.",
+      "This tier of mastery changes how I see the entire game. Everything connects. Everything builds. Everything feeds into the FINAL design.",
+      "Another cycle complete. I am not the same necromancer who first entered this crypt. That version of me was a DRAFT. This is a revision.",
+      "Rising at mastery level three. Somewhere in Brooklynia, a prophet is prophesying my inevitable victory. They call it prophecy. I call it JOURNALISM.",
+      "The skills mesh perfectly now. Like gears in a mechanism of absolute darkness. Each one turns the others. The machine is becoming UNSTOPPABLE.",
+      "Tier three, another rotation. The learning accelerates even as the content deepens. I am the student AND the school. The school is WINNING.",
+      "Back at this level of power. The grind that once felt endless now feels like... warming up. Something vast waits at the end of this path.",
+      "Third tier, many cycles. Each one brings the final confrontation closer. I can feel it. Hope can probably feel it too. She should be CONCERNED.",
+    ],
+    4: [
+      "Fourth tier. The power at this level transcends simple multiplication. It is exponential. It is CATEGORICAL. I am not more powerful. I am a different CLASS of powerful.",
+      "Rising with Tier 4 mastery. The void barely holds me now. Even death seems reluctant to keep me, knowing what I am becoming.",
+      "At this mastery level, the distance between me and my enemies is not measured in power — it is measured in CATEGORIES OF EXISTENCE.",
+      "The wraiths answer with reverence now. Even my undead can feel the difference in their master. Good. Reverence is appropriate.",
+      "Another cycle at the fourth tier. The army that would have taken months to build in my first cycle now rises in HOURS. Time obeys me now.",
+      "Fourth tier knowledge active. The synergies between skills create feedback loops of power that my earlier self would have called impossible. My earlier self was LIMITED.",
+      "Rising at this depth of mastery. The skills compound not just with each other but with my accumulated understanding. I am more than the sum of my techniques.",
+      "The fourth tier is where necromancy stops being a discipline and becomes a NATURE. It is what I am now, not what I do.",
+      "Another rotation at this level. Brooklynia's three factions combined cannot match what a single cycle at this tier can produce. The math is beautiful.",
+      "Fourth tier, many cycles. I barely notice the reset anymore. What others call loss, I call MOMENTUM ADJUSTMENT. The direction never changes.",
+      "The power flows without effort now. My hands move with automatic mastery. My decisions arrive pre-optimized. This is what they mean by TRANSCENDENCE.",
+      "Rising again at tier four depths. There is a final tier above this. I can feel its gravity pulling me upward. Soon.",
+      "Fourth tier mastery on another cycle. The final boss waits. Hope waits. But you don't fight hope — you OUTLAST it. And I am very, very patient.",
+      "The void between cycles is brief now. I spend less time dying and more time PREPARING. The ratio improves with each rotation.",
+      "At this level of power, I can feel the structure of the game itself bending toward my inevitability. This was always going to end the same way.",
+      "Another cycle complete at tier four. Each one carves the path deeper. The destination grows clearer. CERTAIN.",
+      "Fourth tier, many rotations. What once felt like heights now feels like baseline. I am recalibrating upward. Always upward.",
+      "The skills at this tier operate at the boundary of what necromancy can achieve through conventional means. Beyond this boundary: the fifth tier. THE FINAL POWER.",
+      "Rising one more time with fourth tier mastery. Each cycle is not a repetition — it is a refinement of the instrument that will end this conflict.",
+      "Tier four mastery, and the path is clear. The fifth tier awaits. Three skills and then the Final Ascension. And then Hope. And then VICTORY.",
+    ],
+    5: [
+      "Fifth tier. I have arrived at the apex of dark mastery. What exists beyond this point is not power — it is INEVITABILITY. The game is already won. We are merely enacting the conclusion.",
+      "The final tier. Rising with complete mastery, I feel the weight of all previous cycles feeding into this moment. Every death. Every lesson. Every cycle. THIS.",
+      "Tier five, first cycle at this level. The Final Ascension is within reach. Hope is within reach. Victory is within reach. Let them tremble.",
+      "Rising at the apex of power. The necromantic arts have nothing left to teach me. I have moved beyond student, beyond master, into something that has no name yet. I will name it MALAKAR.",
+      "Fifth tier mastery cycling again. The army builds with mechanical perfection. The resources cascade. The path runs straight and clear to the final confrontation.",
+      "At this level, each cycle is not a grind — it is a ceremony. A ritual preparation for something that was always meant to happen.",
+      "Another rotation at peak mastery. They say absolute power corrupts absolutely. I say absolute power CLARIFIES absolutely. Everything becomes simple at sufficient altitude.",
+      "Fifth tier, several cycles in. I wonder if Hope has watched me cycle through this many times. I wonder if she is beginning to understand what she faces.",
+      "Rising at full mastery. The darkness doesn't just obey me now — it ANTICIPATES my commands. This is what godhood must feel like. I will find out soon.",
+      "The final tier, many cycles. Each one perfect. Each one purposeful. Each one another step on a staircase that leads to one destination.",
+      "Tier five mastery, cycling again. The skills interact in ways that defy standard analysis. The total is impossible to calculate. It is simply: SUFFICIENT.",
+      "Rising at the apex. Somewhere, Hope is burning with the light of heaven. Here, I am burning with something older and more fundamental: WILL.",
+      "Fifth tier, many rotations. I no longer measure progress in cycles. I measure it in inevitability. The meter reads: COMPLETE.",
+      "At peak mastery, another cycle completes itself. The army that rises now bears no resemblance to the single zombie that began all of this. We have come VERY far.",
+      "Tier five, cycling with purpose. The Final Ascension skill will be chosen when the time is right. And then Hope. And then the end of her name as a concept.",
+      "Rising at full mastery one more time. I have died enough times that death is simply another room in my house. A small room. With good lighting.",
+      "Fifth tier mastery, and I cycle because each cycle makes the final confrontation more certain. Not more possible. CERTAIN.",
+      "Another rotation at the apex of power. Hope's flame cannot extinguish something that isn't alive in the conventional sense. This is my advantage.",
+      "Tier five, many cycles. The game approaches its final chapter. The forces are aligned. The skills are mastered. The army awaits. All that remains is the DOING.",
+      "TWENTY CYCLES. Your foundation is PERFECT. This is no longer growth — this is TRANSCENDENCE. Every skill mastered, every cycle perfected. Brooklynia cannot stop what you have BECOME.",
+    ],
+  },
+
+  INTRO_DIALOGUE: `They think themselves SAFE in their gilded towers and sun-blessed temples. The Ironclad Republic counts its coins. The Church of the Radiant Sun preaches its hollow light. The Court of Midnight skulks in alleyways. Fools. ALL OF THEM.
+
+I am Malakar, and Brooklynia shall learn the true meaning of power. From the depths of this forgotten crypt, my empire of the dead shall rise.
+
+One corpse twitches at my feet — the first of LEGIONS. They will come. The merchants, the priests, the assassins, the knights... they will all kneel before THE MIGHTY MALAKAR or join my army as HONORED THRALLS.
+
+Brooklynia's descent begins NOW.`,
+
+  OFFLINE_BARKS: {
+    '14400': "FOUR HOURS?! You abandoned THE MIGHTY MALAKAR for FOUR HOURS?! Do you think conquering Brooklynia happens on its own?! The dead were waiting! The dark mana was accumulating! And WHERE were you?! I don't want to know. I simply want the productivity report.",
+    '7200':  "You DARE leave me unattended for [time]?! I am MALAKAR, not some idle parlor trick left running in a background tab! My undead army has been marching without oversight! They nearly organized a democracy in my absence. A DEMOCRACY. This is your fault.",
+    '3600':  "Gone for [time], were we? And pray tell, what crisis demanded your attention more urgently than the CONQUEST OF BROOKLYNIA? A meal? Sleep? Social obligations? NONE of these things are valid. Come back and supervise.",
+    '1800':  "Half an hour of absence. I have noted it in my records. You will not like what is in my records.",
+    '300':   "Five minutes. I've been counting. Every second of your absence was a second of missed optimization. I have thoughts about this. Many thoughts. All of them unflattering.",
+  },
+
+  TICKER_MESSAGES: [
+    "Your armies hunger for conquest, worm.",
+    "The dead do not tire. The dead do not fear.",
+    "Brooklynia trembles at my name!",
+    "Every soul that falls serves THE MIGHTY MALAKAR.",
+    "Do not test my patience, fool.",
+    "The darkness serves ME. What does it serve YOU?",
+    "Three factions oppose me. Three mistakes.",
+    "My army grows while you dither, worm.",
+    "The Black Tower rises. Hope's flame dims.",
+    "I have died more times than you have lived. Consider what that means.",
+    "Soul Essence flows like blood through a battlefield — MINE.",
+    "Ghouls, zombies, golems... they are not slaves. They are ENTHUSIASTS.",
+    "Even my setbacks are more impressive than your victories, worm.",
+    "Brooklynia will remember my name. They will have no choice.",
+    "The void between cycles is merely the darkness catching its breath.",
+  ],
+
+};
+
+console.log('[Malakar] Config loaded. Skills:', Object.keys(CONFIG.GRIMOIRE_SKILLS).length, '| Quests:', CONFIG.QUESTS.length, '| Bosses:', CONFIG.BOSSES.length);
