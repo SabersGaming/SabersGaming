@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Malakar's Descent</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="game-root">
+
+  <!-- ===== RIGHT PANEL ===== -->
+  <div id="right-panel">
+
+    <!-- INFO BAR -->
+    <div id="info-bar">
+      <div id="info-bar-row1">
+        <div id="info-bar-title">MALAKAR'S DESCENT</div>
+
+        <div id="info-bar-resources">
+          <span class="stat-chip chip-se">
+            <span class="stat-chip-label">Soul Essence</span>
+            <span class="stat-chip-value" id="display-se">0</span>
+          </span>
+          <span class="stat-chip chip-dm">
+            <span class="stat-chip-label">Dark Mana</span>
+            <span class="stat-chip-value" id="display-dm">0</span>
+          </span>
+          <span class="stat-chip chip-cm">
+            <span class="stat-chip-label">Corpse</span>
+            <span class="stat-chip-value" id="display-cm">0</span>
+          </span>
+          <span class="stat-chip chip-lv">
+            <span class="stat-chip-label">Level</span>
+            <span class="stat-chip-value" id="display-level">1</span>
+          </span>
+          <span class="stat-chip chip-mult">
+            <span class="stat-chip-label">Mult</span>
+            <span class="stat-chip-value" id="display-mult">1×</span>
+          </span>
+          <span class="stat-chip chip-tup">
+            <span class="stat-chip-label">TUP</span>
+            <span class="stat-chip-value" id="display-tup">0</span>
+          </span>
+        </div>
+
+        <div id="info-bar-auth">
+          <span class="auth-dot" id="auth-dot"></span>
+          <button class="btn-auth" id="btn-google-signin">Google</button>
+          <button class="btn-auth" id="btn-email-login">Email</button>
+          <button class="btn-auth hidden" id="btn-sign-out">Sign Out</button>
+        </div>
+      </div>
+
+      <!-- Portrait-only resource row -->
+      <div id="info-bar-row-resources">
+        <span class="stat-chip chip-se">
+          <span class="stat-chip-label">SE</span>
+          <span class="stat-chip-value" id="display-se-p">0</span>
+        </span>
+        <span class="stat-chip chip-dm">
+          <span class="stat-chip-label">DM</span>
+          <span class="stat-chip-value" id="display-dm-p">0</span>
+        </span>
+        <span class="stat-chip chip-cm">
+          <span class="stat-chip-label">CM</span>
+          <span class="stat-chip-value" id="display-cm-p">0</span>
+        </span>
+        <span class="stat-chip chip-lv">
+          <span class="stat-chip-label">Lv</span>
+          <span class="stat-chip-value" id="display-level-p">1</span>
+        </span>
+        <span class="stat-chip chip-mult">
+          <span class="stat-chip-label">Mult</span>
+          <span class="stat-chip-value" id="display-mult-p">1×</span>
+        </span>
+        <span class="stat-chip chip-tup">
+          <span class="stat-chip-label">TUP</span>
+          <span class="stat-chip-value" id="display-tup-p">0</span>
+        </span>
+      </div>
+
+      <!-- ROW 2: Units + Tomes -->
+      <div id="info-bar-row2">
+        <span class="info-row2-label">Army:</span>
+        <span class="stat-chip chip-unit-z">
+          <span class="stat-chip-label">Zombies</span>
+          <span class="stat-chip-value" id="display-zombies">0/0</span>
+        </span>
+        <span class="stat-chip chip-unit-g">
+          <span class="stat-chip-label">Ghouls</span>
+          <span class="stat-chip-value" id="display-ghouls">0/0</span>
+        </span>
+        <span class="stat-chip chip-unit-gol">
+          <span class="stat-chip-label">Golems</span>
+          <span class="stat-chip-value" id="display-golems">0/0</span>
+        </span>
+        <span class="stat-chip hidden" id="display-wraiths-chip">
+          <span class="stat-chip-label">Wraiths</span>
+          <span class="stat-chip-value" id="display-wraiths">0/0</span>
+        </span>
+        <span class="info-row2-divider">|</span>
+        <span class="info-row2-label">Tomes:</span>
+        <span class="stat-chip chip-tome-b">
+          <span class="stat-chip-label">Binding</span>
+          <span class="stat-chip-value" id="display-binding">0/0</span>
+        </span>
+        <span class="stat-chip chip-tome-s">
+          <span class="stat-chip-label">Sight</span>
+          <span class="stat-chip-value" id="display-sight">0/0</span>
+        </span>
+      </div>
+    </div><!-- /info-bar -->
+
+    <!-- TICKER -->
+    <div id="ticker-banner">
+      <div id="ticker-text">Your armies hunger for conquest, worm.</div>
+    </div>
+
+    <!-- TAB ROW -->
+    <div id="tab-row">
+      <button class="tab-btn active" data-tab="event-log">Event Log</button>
+      <button class="tab-btn" data-tab="tower">Tower</button>
+      <button class="tab-btn" data-tab="raid">Raids</button>
+      <button class="tab-btn hidden" data-tab="boss" id="tab-btn-boss">Bosses</button>
+      <button class="tab-btn" data-tab="quests">Quests</button>
+      <button class="tab-btn" data-tab="grimoire-codex">Grimoire Codex</button>
+      <button class="tab-btn" data-tab="stats">Stats</button>
+      <button class="tab-btn" data-tab="info">Info</button>
+    </div>
+
+    <!-- TAB CONTENT -->
+    <div id="tab-content">
+
+      <!-- EVENT LOG -->
+      <div id="tab-event-log" class="tab-panel"></div>
+
+      <!-- TOWER -->
+      <div id="tab-tower" class="tab-panel hidden">
+        <div class="grimoire-codex-header" style="color:var(--text-crimson);border-color:var(--crimson);margin-bottom:8px;">The Black Tower of Malakar</div>
+        <p class="text-dim text-italic mb-8" style="font-size:12px;">Construct your tower to amplify the darkness...</p>
+        <div class="tower-visual" id="tower-floors-display"></div>
+        <div id="tower-build-section" style="margin-top:12px;"></div>
+      </div>
+
+      <!-- RAID -->
+      <div id="tab-raid" class="tab-panel hidden">
+        <div class="grimoire-codex-header" style="color:var(--text-warning);border-color:#8a4400;margin-bottom:8px;">Terror Raids</div>
+        <div id="raid-content"></div>
+      </div>
+
+      <!-- BOSS -->
+      <div id="tab-boss" class="tab-panel hidden">
+        <div class="grimoire-codex-header" style="margin-bottom:8px;">Champions of Brooklynia</div>
+        <div id="boss-content"></div>
+      </div>
+
+      <!-- QUESTS -->
+      <div id="tab-quests" class="tab-panel hidden">
+        <div class="grimoire-codex-header" style="color:var(--text-gold);border-color:rgba(212,168,32,0.3);margin-bottom:8px;">Dark Quests</div>
+        <div id="quests-content"></div>
+      </div>
+
+      <!-- GRIMOIRE CODEX -->
+      <div id="tab-grimoire-codex" class="tab-panel hidden">
+        <div class="grimoire-codex-header">The Grimoire Codex — 23 Dark Skills</div>
+        <p class="text-dim text-italic mb-8" style="font-size:12px;">Skills purchased during Grimoire Prestige. Marked skills persist through resets.</p>
+        <div id="grimoire-codex-content"></div>
+      </div>
+
+      <!-- STATS -->
+      <div id="tab-stats" class="tab-panel hidden">
+        <div class="grimoire-codex-header" style="color:var(--text-gold);border-color:rgba(212,168,32,0.3);margin-bottom:8px;">Dark Statistics</div>
+        <div id="stats-content"></div>
+      </div>
+
+      <!-- INFO -->
+      <div id="tab-info" class="tab-panel hidden">
+        <div class="grimoire-codex-header" style="color:var(--text-secondary);margin-bottom:12px;">The Necromancer's Codex — Game Guide</div>
+        <div id="info-content"></div>
+      </div>
+
+    </div><!-- /tab-content -->
+  </div><!-- /right-panel -->
+
+  <!-- ===== LEFT PANEL: ACTION BUTTONS ===== -->
+  <div id="left-panel">
+
+    <div class="btn-category-label">Raise Army</div>
+
+    <div class="btn-row-pair">
+      <button class="btn btn-unit-zombie" id="btn-zombie">
+        <div class="btn-label">Zombie</div>
+        <div class="btn-sub">10 SE</div>
+      </button>
+      <button class="btn btn-unit-ghoul" id="btn-ghoul">
+        <div class="btn-label">Ghoul</div>
+        <div class="btn-sub">100SE+10DM</div>
+      </button>
+    </div>
+
+    <button class="btn btn-unit-golem" id="btn-golem">
+      <div class="btn-label">Golem</div>
+      <div class="btn-sub">1000 SE + 50 DM</div>
+    </button>
+
+    <button class="btn btn-unit-wraith hidden" id="btn-wraith">
+      <div class="btn-label">Wraith</div>
+      <div class="btn-sub">5000 SE + 100 DM</div>
+    </button>
+
+    <button class="btn" id="btn-raise-all">Raise All Undead</button>
+
+    <div class="btn-category-label">Strengthen</div>
+
+    <div class="btn-row-pair">
+      <button class="btn btn-tome" id="btn-binding">
+        <div class="btn-label">Binding</div>
+        <div class="btn-sub">100 DM</div>
+      </button>
+      <button class="btn btn-tome" id="btn-sight">
+        <div class="btn-label">Sight</div>
+        <div class="btn-sub">250 DM</div>
+      </button>
+    </div>
+
+    <button class="btn" id="btn-study">
+      <div class="btn-label">Study</div>
+      <div class="btn-sub">50 DM</div>
+    </button>
+
+    <button class="btn" id="btn-dark-library">Dark Library</button>
+    <button class="btn" id="btn-offline-time">Offline Time</button>
+
+    <div class="btn-category-label">Curses</div>
+
+    <button class="btn btn-curse" id="btn-feast">
+      <div class="btn-label">Feast of Souls</div>
+      <div class="btn-sub">100 DM · 60s</div>
+    </button>
+
+    <button class="btn btn-curse" id="btn-corpse-grat">
+      <div class="btn-label">Corpse Gratification</div>
+      <div class="btn-sub">10k SE + 750 DM</div>
+    </button>
+
+    <button class="btn btn-curse" id="btn-ruinous">
+      <div class="btn-label">Ruinous Ambition</div>
+      <div class="btn-sub">250 DM · 10m CD</div>
+    </button>
+
+    <div class="btn-category-label">Advanced</div>
+
+    <button class="btn btn-raid" id="btn-raid">
+      <div class="btn-label">Terror Raid</div>
+      <div class="btn-sub" id="btn-raid-status"></div>
+    </button>
+
+    <button class="btn btn-ascend" id="btn-ascend">
+      ⚡ ASCEND
+      <div class="btn-sub btn-ascend-cost" id="btn-ascend-cost">1,000,000 SE</div>
+    </button>
+
+    <button class="btn btn-grimoire" id="btn-grimoire">
+      ✦ Grimoire Prestige
+    </button>
+
+    <button class="btn btn-shop" id="btn-shop">Shop (IAP)</button>
+
+    <div class="btn-row-pair">
+      <button class="btn btn-save" id="btn-save">Save</button>
+      <button class="btn btn-load" id="btn-load">Load</button>
+    </div>
+
+  </div><!-- /left-panel -->
+
+</div><!-- /game-root -->
+
+<!-- ===== MODALS ===== -->
+
+<!-- Age Gate -->
+<div class="modal-overlay visible" id="modal-age-gate" style="z-index:1100;">
+  <div class="modal-box" style="max-width:480px;border-color:var(--crimson-bright);box-shadow:0 0 40px rgba(139,0,0,0.5),0 0 80px rgba(0,0,0,0.9);">
+    <div class="modal-title" style="font-size:15px;letter-spacing:0.08em;">⚠ CONTENT ADVISORY</div>
+    <div class="modal-body" style="text-align:center;font-style:normal;color:var(--text-secondary);line-height:1.8;">
+      <div style="font-family:var(--font-display);font-size:13px;color:var(--crimson-bright);margin-bottom:14px;letter-spacing:0.06em;">— MALAKAR ADDRESSES YOU DIRECTLY —</div>
+      <p style="font-style:italic;color:var(--text-primary);font-size:15px;margin-bottom:14px;">"You stand at the threshold of my domain. Before you may witness my INEVITABLE conquest of Brooklynia, the powers that govern such things insist I inform you:"</p>
+      <div style="border:1px solid var(--border-accent);border-radius:var(--radius-md);padding:12px 16px;background:rgba(139,0,0,0.08);margin-bottom:14px;">
+        <div style="font-family:var(--font-display);font-size:18px;color:var(--text-gold);letter-spacing:0.1em;margin-bottom:6px;">RATED T FOR TEEN</div>
+        <div style="font-size:12px;color:var(--text-secondary);">Fantasy Violence · Dark Themes · Mild Language</div>
+      </div>
+      <p style="font-style:italic;color:var(--text-primary);font-size:14px;margin-bottom:6px;">"This game contains undead armies, necromantic rituals, and the systematic dismantling of Brooklynia's three factions. It is suitable for ages <strong style="color:var(--text-bright);font-style:normal;">13 and older.</strong>"</p>
+      <p style="font-style:italic;font-size:13px;color:var(--text-secondary);">"By continuing, you confirm you meet this requirement — or that a suitably grim adult has given their blessing."</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-confirm" id="btn-age-gate-continue" style="min-width:180px;font-family:var(--font-display);font-size:12px;letter-spacing:0.06em;">☠ I AM 13+ — ENTER THE DESCENT</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lore Background Modal -->
+<div class="modal-overlay" id="modal-lore-background" style="z-index:1050;">
+  <div class="modal-box" style="max-width:560px;border-color:var(--border-bright);">
+    <div class="modal-title" style="font-size:14px;letter-spacing:0.08em;">📜 THE WORLD OF BROOKLYNIA</div>
+    <div class="modal-body" style="font-style:normal;color:var(--text-secondary);line-height:1.85;font-size:13px;">
+      <p style="color:var(--text-primary);font-size:14px;margin-bottom:14px;font-style:italic;">Before Malakar, there was a boy. Before the boy became a monster, he was simply <em>right</em> — and punished for it.</p>
+      <p style="margin-bottom:12px;"><strong style="color:var(--text-bright);">Brooklynia</strong> is a land of ten factions and fifteen sovereign cities, held together by a treaty called the Covenant of Seven Cities — a fragile truce that everyone observes in public and violates in private. Three factions now stand against you:</p>
+      <div style="border:1px solid var(--border-mid);border-radius:var(--radius-md);padding:10px 14px;background:rgba(10,10,18,0.6);margin-bottom:12px;">
+        <div style="margin-bottom:6px;"><span style="color:var(--text-gold);font-family:var(--font-display);font-size:10px;letter-spacing:0.06em;">THE IRONCLAD REPUBLIC</span> — A merchant empire governed by the Board of Iron, whose every decision is made by vote and every vote can be bought.</div>
+        <div style="margin-bottom:6px;"><span style="color:var(--text-gold);font-family:var(--font-display);font-size:10px;letter-spacing:0.06em;">THE CHURCH OF THE RADIANT SUN</span> — Devotees of Sol-Auris, the sun god, who consider undeath the deepest possible desecration of light.</div>
+        <div><span style="color:var(--text-gold);font-family:var(--font-display);font-size:10px;letter-spacing:0.06em;">THE COURT OF MIDNIGHT</span> — A criminal empire structured like a government, deeply invested in your failure.</div>
+      </div>
+      <div style="border-left:2px solid var(--crimson);padding:8px 14px;background:rgba(139,0,0,0.07);margin-bottom:12px;font-style:italic;color:var(--text-primary);">Malakar was gifted — genuinely, undeniably gifted — and the other apprentice mages knew it. So they mocked him. He descended into the old crypts where the ley lines run black and cold, and he learned what the academies refused to teach.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-confirm" id="btn-lore-background-close" style="min-width:160px;font-family:var(--font-display);font-size:11px;letter-spacing:0.06em;">☠ I UNDERSTAND THE STAKES</button>
+    </div>
+  </div>
+</div>
+
+<!-- Story / General Modal -->
+<div class="modal-overlay" id="modal-story">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-story-title">Malakar Speaks</div>
+    <div class="modal-body" id="modal-story-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-confirm" id="modal-story-close" style="min-width:120px;">I Understand</button>
+    </div>
+  </div>
+</div>
+
+<!-- Grimoire Modal -->
+<div class="modal-overlay" id="modal-grimoire">
+  <div class="modal-box">
+    <div class="modal-title">✦ The Grimoire — Choose Your Dark Powers</div>
+    <div class="grimoire-paused-notice">⏸ GAME PAUSED — Spend your resources on skills before confirming the reset</div>
+    <div class="grimoire-resources-display" id="grimoire-resources-display">
+      <span class="text-mana">DM: <strong id="grimoire-dm">0</strong></span>
+      <span class="text-crimson">CM: <strong id="grimoire-cm">0</strong></span>
+    </div>
+    <div id="grimoire-skill-tiers"></div>
+    <hr class="section-divider" style="border-color:var(--mana);margin:16px 0;">
+    <div class="modal-footer">
+      <button class="btn" id="modal-grimoire-cancel" style="min-width:100px;">Cancel</button>
+      <button class="btn btn-danger" id="modal-grimoire-confirm" style="min-width:160px;font-family:var(--font-display);font-size:11px;">☠ CONFIRM PRESTIGE RESET</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dark Library Modal -->
+<div class="modal-overlay" id="modal-library">
+  <div class="modal-box">
+    <div class="modal-title" style="color:var(--text-mana);">📚 Dark Library</div>
+    <div class="library-tup-display">Tome Upgrade Points: <span id="library-tup-display">0</span></div>
+    <div id="library-content"></div>
+    <div class="modal-footer">
+      <button class="btn" id="modal-library-close" style="min-width:100px;">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Offline Time Modal -->
+<div class="modal-overlay" id="modal-offline">
+  <div class="modal-box">
+    <div class="modal-title" style="color:var(--text-shadow);">⏳ Offline Progress</div>
+    <div class="modal-body" id="offline-modal-body"></div>
+    <div id="offline-controls"></div>
+    <div class="modal-footer">
+      <button class="btn btn-confirm" id="modal-offline-apply" style="min-width:120px;">Apply</button>
+      <button class="btn" id="modal-offline-skip" style="min-width:100px;">Skip</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shop Modal -->
+<div class="modal-overlay" id="modal-shop">
+  <div class="modal-box">
+    <div class="modal-title">⚗ The Dark Emporium</div>
+    <div class="shop-test-notice">Testing Mode: All purchases simulated. Click to receive items instantly.</div>
+    <div id="shop-content"></div>
+    <div class="modal-footer">
+      <button class="btn" id="modal-shop-close" style="min-width:100px;">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Raid Modal -->
+<div class="modal-overlay" id="modal-raid">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-raid-title">Choose Your Target</div>
+    <div class="modal-body" id="modal-raid-body"></div>
+    <div id="modal-raid-choices"></div>
+    <div class="modal-footer" id="modal-raid-footer">
+      <button class="btn" id="modal-raid-cancel" style="min-width:100px;">Retreat</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCRIPTS — Load order is mandatory ===== -->
+<!-- Data layer -->
+<script src="data/config.js"></script>
+<script src="data/state.js"></script>
+
+<!-- Pure utilities -->
+<script src="systems/helpers.js"></script>
+
+<!-- Systems (no DOM) -->
+<script src="systems/resources.js"></script>
+<script src="systems/units.js"></script>
+<script src="systems/tomes.js"></script>
+<script src="systems/progression.js"></script>
+<script src="systems/curses.js"></script>
+<script src="systems/grimoire.js"></script>
+<script src="systems/tower.js"></script>
+<script src="systems/raids.js"></script>
+<script src="systems/combat.js"></script>
+<script src="systems/quests.js"></script>
+<script src="systems/offline.js"></script>
+<script src="systems/shop.js"></script>
+<script src="systems/save.js"></script>
+<script src="systems/tick.js"></script>
+
+<!-- UI layer (DOM only, reads state) -->
+<script src="ui/modals.js"></script>
+<script src="ui/tabs.js"></script>
+<script src="ui/display.js"></script>
+<script src="ui/events.js"></script>
+
+</body>
+</html>
